@@ -2,7 +2,7 @@
 
 Scales is an ad-free, offline Android alternative to apps such as OKOK International for compatible Bluetooth bathroom scales. Open **Today**, step on the scale and see the reading above your weight trend. You can also record weight, waist measurements and notes by hand. Your history starts empty, stays on your phone and can be exported at any time.
 
-[Download the Android APK from Releases](../../releases/latest)
+[Download Scales 1.2 for Android](https://github.com/smartdevuk/Scales/releases/download/v1.2/Scales-1.2.apk) · [Latest release and checksum](https://github.com/smartdevuk/Scales/releases/latest)
 
 <img src="docs/screenshots/02-today.png" width="300" alt="Today screen showing a synthetic weight history and its smoothed trend" />
 
@@ -18,6 +18,8 @@ Use **Settings → Choose scales again** when replacing a device. For an unfamil
 With a phone connected to an authorised ADB session, install or update from Windows or Linux with `adb install -r Scales-1.2.apk`.
 
 ## Follow your progress
+
+<img src="docs/screenshots/05-weight-graph.gif" width="480" alt="The weight trend draws across the chart, then a violet ring highlights a newly saved sample reading" />
 
 - **Today** shows your latest saved weight and how its smoothed trend has changed over one and two weeks. Each comparison appears when your history covers that date. If you missed the date, Scales estimates the trend between surrounding readings up to seven days apart. Optional habits let you record resistance training, protein with a meal or a custom activity. A weekly weighing goal counts distinct days.
 - **Trends** shows individual observations and a smoothed line for weight or waist. Each local day's median enters an exponential moving average with a seven-day half-life. Tap an observation to inspect it.

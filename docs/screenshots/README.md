@@ -8,3 +8,4 @@ The images in this directory illustrate the Android views using synthetic measur
 | [Today](02-today.png) | A foreground weighing session with sample history and 7-day and 14-day weight trends. |
 | [Trends](03-trends.png) | Recorded sample weights and an estimated trend. |
 | [History](04-history.png) | Individual entries from the sample history. |
+| [Weight graph animation](05-weight-graph.gif) | The trend line draws when Today opens. A new sample weigh-in adds a dot with a brief violet pulse. |
