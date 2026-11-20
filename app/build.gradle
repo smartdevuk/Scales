@@ -1,0 +1,70 @@
+plugins {
+    id 'com.android.application' version '8.1.3'
+}
+
+def signingVariables = ['SCALES_KEYSTORE','SCALES_KEY_ALIAS','SCALES_STORE_PASSWORD','SCALES_KEY_PASSWORD']
+def present = signingVariables.findAll { System.getenv(it) }
+def customSigning = present.size() == signingVariables.size()
+def legacyKey = providers.gradleProperty('violetKeystore').orNull
+def selectedFile = customSigning ? new File(System.getenv('SCALES_KEYSTORE')) :
+        (legacyKey ? rootProject.file(legacyKey) : new File(System.getProperty('user.home'), '.android/debug.keystore'))
+def selectedAlias = customSigning ? System.getenv('SCALES_KEY_ALIAS') : 'androiddebugkey'
+def selectedStorePassword = customSigning ? System.getenv('SCALES_STORE_PASSWORD') : 'android'
+def expectedCert = customSigning ? System.getenv('SCALES_EXPECTED_CERT_SHA256') :
+        '0383b4120a42f88f2a5bcd9cfc110d37d50e4aa70862f09c3906ab1650e27adb'
+
+android {
+    namespace 'uk.co.violetscale.probe'
+    compileSdk 34
+    buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        applicationId 'uk.co.violetscale.probe'
+        minSdk 23
+        targetSdk 34
+        versionCode 4
+        versionName '1.2'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    signingConfigs {
+        production {
+            storeFile selectedFile
+            keyAlias selectedAlias
+            storePassword selectedStorePassword
+            keyPassword = customSigning ? System.getenv('SCALES_KEY_PASSWORD') : 'android'
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.production
+            debuggable false
+            minifyEnabled false
+        }
+    }
+}
+
+tasks.matching { it.name == 'validateSigningRelease' }.configureEach {
+    // Validate on every release invocation even when the APK tasks otherwise use cached outputs.
+    outputs.upToDateWhen { false }
+    doFirst {
+        if (!present.isEmpty() && !customSigning) {
+            throw new GradleException('Configure all four SCALES signing variables. See BUILDING.md.')
+        }
+        if (!selectedFile.isFile() || selectedFile.canonicalFile.toPath().startsWith(rootDir.canonicalFile.toPath())) {
+            throw new GradleException('Supply a retained external signing keystore. See BUILDING.md.')
+        }
+        def store = java.security.KeyStore.getInstance(selectedFile, selectedStorePassword.toCharArray())
+        def cert = store.getCertificate(selectedAlias)
+        if (cert == null) throw new GradleException('Selected signer alias is missing.')
+        def digest = java.security.MessageDigest.getInstance('SHA-256').digest(cert.encoded).encodeHex().toString()
+        if (expectedCert && digest != expectedCert.replaceAll(/[:\s]/, '').toLowerCase(Locale.ROOT)) {
+            throw new GradleException('Signing certificate does not match the expected SHA-256 digest.')
+        }
+    }
+}

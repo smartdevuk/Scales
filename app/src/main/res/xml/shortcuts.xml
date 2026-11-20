@@ -1,0 +1,8 @@
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="weigh" android:enabled="true"
+        android:icon="@drawable/ic_violet" android:shortcutShortLabel="@string/weigh_now">
+        <intent android:action="uk.co.violetscale.WEIGH"
+            android:targetPackage="uk.co.violetscale.probe"
+            android:targetClass="uk.co.violetscale.probe.HomeActivity" />
+    </shortcut>
+</shortcuts>
