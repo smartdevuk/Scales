@@ -1,0 +1,45 @@
+name: Publish Scales 1.2
+on:
+  push:
+    branches: ['release-assets/v1.2']
+    paths: ['.github/workflows/publish-scales-1.2.yml']
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Fetch the signed release files and verify their checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET_COMMIT: c0dc42d4ad243589ebe47313c5efc0babef5a1ae
+        run: |
+          set -euo pipefail
+          for name in Scales-1.2.apk Scales-1.2.apk.sha256 Scales-weight-graph-demo.gif; do
+            gh api "repos/$GITHUB_REPOSITORY/contents/downloads/$name?ref=$ASSET_COMMIT" --jq .content | base64 --decode > "$name"
+          done
+          printf '%s  %s\n' 'de44661aae163a32cf805203ff6b82dae5c6b683b27c3ebb96887a1d3d3fd704' 'Scales-1.2.apk' | sha256sum --check
+          sha256sum --check Scales-1.2.apk.sha256
+      - name: Publish the stable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: e04e5cfc697a33ea2996715e024da9e645198286
+        run: |
+          set -euo pipefail
+          cat > release.md <<'RELEASE_NOTES'
+          Scales 1.2 is an ad-free, offline Android app for compatible Bluetooth bathroom scales. Download **Scales-1.2.apk** below and install it on Android 6.0 or later. Existing Scales and Violet installations can update in place.
+          
+          - See your latest weight, an animated weight chart, and changes in your smoothed trend over 7 and 14 days.
+          - Track waist measurements, resistance training and protein habits alongside your weigh-ins.
+          - Weigh with a supported Bluetooth scale or log manually. Yoda0 weight readings have hardware evidence. The additional Xiaomi, OKOK C0, Icomon/Fitdays and Bluetooth SIG formats were tested using protocol fixtures. [Check your model](https://github.com/smartdevuk/Scales/blob/v1.2/PROTOCOL.md).
+          
+          ![Weight trend on opening Today and saving a new sample weigh-in](https://raw.githubusercontent.com/smartdevuk/Scales/c0dc42d4ad243589ebe47313c5efc0babef5a1ae/downloads/Scales-weight-graph-demo.gif)
+          
+          [Setup and first weigh-in](https://github.com/smartdevuk/Scales/blob/v1.2/README.md#first-weigh-in) · [Validation](https://github.com/smartdevuk/Scales/blob/v1.2/VALIDATION.md)
+          RELEASE_NOTES
+          gh release create v1.2 Scales-1.2.apk Scales-1.2.apk.sha256 Scales-weight-graph-demo.gif \
+            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title 'Scales 1.2' --latest --notes-file release.md
