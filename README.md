@@ -1,3 +1,5 @@
+<img src="docs/branding/icon.svg" alt="Scales app icon" width="80" height="80">
+
 # Scales
 
 Scales is an ad-free, offline Android alternative to apps such as OKOK International for compatible Bluetooth bathroom scales. Open **Today**, step on the scale and see the reading above your weight trend. You can also record weight, waist measurements and notes by hand. Your history starts empty, stays on your phone and can be exported at any time.
