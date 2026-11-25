@@ -55,7 +55,16 @@ jobs:
           fi
           [[ "$release_id" =~ ^[0-9]+$ ]]
           test "$(gh api "$endpoint/$release_id" --jq .target_commitish)" = "$SOURCE_COMMIT"
-          for file in Scales-1.3.apk Scales-1.3.apk.sha256 Scales-weight-graph-demo.gif; do
+          # The animation is embedded from the verified Git source in the release notes.
+          # Remove only our failed, unfinalised upload slot for that optional attachment.
+          if [[ "$release_id" == "458340584" ]]; then
+            slot=$(gh api "$endpoint/$release_id/assets" | jq -r '.[] | select(.id == 792204736 and .name == "Scales-weight-graph-demo.gif" and .state == "starter" and .digest == null and .uploader.login == "github-actions[bot]") | .id')
+            if [[ "$slot" == "792204736" ]]; then
+              test "$(gh api "$endpoint/$release_id" --jq .draft)" = true
+              gh api --method DELETE "$endpoint/assets/$slot"
+            fi
+          fi
+          for file in Scales-1.3.apk Scales-1.3.apk.sha256; do
             wanted="sha256:$(sha256sum "$file" | cut -d ' ' -f 1)"
             for attempt in 1 2 3; do
               existing=$(gh api "$endpoint/$release_id/assets" | jq -r --arg f "$file" '.[] | select(.name == $f) | [.state, .digest] | join(" ")')
