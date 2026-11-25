@@ -1,0 +1,60 @@
+name: Publish Scales 1.3
+on:
+  push:
+    branches: ['release-assets/v1.3']
+    paths: ['.github/workflows/publish-scales-1.3.yml']
+permissions: {}
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Verify the tested APK and release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_RUN: '45651481260'
+          TEST_COMMIT: 'fee2141c1aa6cdf5258942022f28b89361269c5c'
+          ASSET_COMMIT: 'fee2141c1aa6cdf5258942022f28b89361269c5c'
+          SOURCE_COMMIT: '7f38862f76d0a9a711ccc4c0f40a0f3795652a8a'
+        run: |
+          set -euo pipefail
+          verified=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TEST_RUN" --jq '[.conclusion, .head_sha] | join(" ")')
+          test "$verified" = "success $TEST_COMMIT"
+          for name in Scales-1.3.apk Scales-1.3.apk.sha256; do
+            gh api "repos/$GITHUB_REPOSITORY/contents/downloads/$name?ref=$ASSET_COMMIT" --jq .content | base64 --decode > "$name"
+          done
+          gh api "repos/$GITHUB_REPOSITORY/contents/docs/screenshots/05-weight-graph.gif?ref=$SOURCE_COMMIT" --jq .content | base64 --decode > Scales-weight-graph-demo.gif
+          echo '7599b385e1101cf6c5dc4ec3b0440e9bd28dd1bc6e9c397ef9ecd033ef41c0e5  Scales-1.3.apk' | sha256sum --check
+          echo '77abd0b29b58d0da7edd359bcfc19403645f665364e7d39327bc771485c65f99  Scales-weight-graph-demo.gif' | sha256sum --check
+          sha256sum --check Scales-1.3.apk.sha256
+      - name: Publish v1.3 and check the public download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: '7f38862f76d0a9a711ccc4c0f40a0f3795652a8a'
+        run: |
+          set -euo pipefail
+          cat > notes.md <<'NOTES'
+          The **Today** weight graph is now 200 dp tall. Subtle gridlines show weights in your selected units. The vertical scale fits the visible readings and smoothed trend with padding and a minimum span, so small fluctuations remain in proportion.
+
+          The violet trace, gradient fill and pulse on a newly saved weigh-in are retained. The chart stays between the latest weigh-in and your daily tasks.
+
+          **Updating from v1.2:** download **Scales-1.3.apk** and install it over the existing app. The package and signing key match v1.2. An in-place upgrade on Android 14 preserved recorded measurements and settings across two cold starts.
+
+          ![Scales 1.3 weight graph with sample readings](https://raw.githubusercontent.com/smartdevuk/Scales/7f38862f76d0a9a711ccc4c0f40a0f3795652a8a/docs/screenshots/05-weight-graph.gif)
+
+          [Validation results](https://github.com/smartdevuk/Scales/blob/v1.3/VALIDATION.md) · [Upgrade test run](https://github.com/smartdevuk/Scales/actions/runs/45651481260)
+          NOTES
+          gh release create v1.3 Scales-1.3.apk Scales-1.3.apk.sha256 Scales-weight-graph-demo.gif \
+            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title 'Scales 1.3' --latest --notes-file notes.md
+          for attempt in 1 2 3 4 5; do
+            if curl --fail --location --silent --show-error \
+              "https://github.com/$GITHUB_REPOSITORY/releases/download/v1.3/Scales-1.3.apk" -o public.apk && cmp Scales-1.3.apk public.apk; then
+              echo 'Public APK is byte-for-byte identical to the tested signed build.'
+              exit 0
+            fi
+            sleep 4
+          done
+          exit 1
