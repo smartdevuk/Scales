@@ -29,13 +29,14 @@ final class TrendPlot extends View {
     }
 
     private final TrendSeries.Window data;
-    private final boolean compact;
+    private final boolean homeChart;
     private final Labels labels;
     private final Paint pen = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final float density;
     private final DashPathEffect gap;
-    private final String[] ticks = new String[3];
+    private final String[] ticks;
+    private final float font, labelWidth;
     private String startLabel, endLabel;
     private static final int LINE = 0xFFB68AFF, POINT = 0xFFF5F0FF, GRID = 0xFF39333F;
     private float left, right, top, bottom, downX, downY;
@@ -48,45 +49,58 @@ final class TrendPlot extends View {
     private int selected = -1;
     private boolean scrubbing;
 
-    TrendPlot(Context context, TrendSeries.Window data, boolean compact, Labels labels) {
+    TrendPlot(Context context, TrendSeries.Window data, WeightAxis homeAxis, Labels labels) {
         super(context);
         this.data = data;
-        this.compact = compact;
+        this.homeChart = homeAxis != null;
         this.labels = labels;
         density = getResources().getDisplayMetrics().density;
         gap = new DashPathEffect(new float[]{dp(3), dp(5)}, 0);
         domainStart = data.from;
         domainEnd = data.to + 1.0;
-        // A compact plot fills its width with the readings in its labelled window.
+        // The home chart fills its width with the readings in its labelled window.
         // A single instant stays centred and never implies a span of observations.
-        if (compact && !data.samples.isEmpty()) {
+        if (homeChart && !data.samples.isEmpty()) {
             domainStart = data.samples.get(0).x;
             domainEnd = data.samples.get(data.samples.size() - 1).x;
         }
-        setFocusable(!compact);
-        setClickable(!compact);
-        setContentDescription(compact ? data.samples.size() + (data.samples.size() == 1 ? " weight reading" : " weight readings") + " in the past month"
+        setFocusable(!homeChart);
+        setClickable(!homeChart);
+        setContentDescription(homeChart ? data.samples.size() + (data.samples.size() == 1 ? " weight reading" : " weight readings") + " in the past month"
                 : "Measurement chart. Select a point or use next and previous to inspect readings.");
-        min = Double.POSITIVE_INFINITY;
-        max = Double.NEGATIVE_INFINITY;
-        for (TrendSeries.Sample s : data.samples) include(s.value);
-        for (TrendSeries.Day d : data.days) include(d.trend);
-        if (data.samples.isEmpty()) { min = 0; max = 1; }
-        double margin = Math.max(0.15, (max - min) * 0.16);
-        if (max - min < 1.0) margin = Math.max(margin, (1.0 - (max - min)) / 2);
-        min -= margin;
-        max += margin;
-        if (!compact) {
+        if (homeAxis != null) {
+            min = homeAxis.minKg;
+            max = homeAxis.maxKg;
+            ticks = new String[homeAxis.ticksKg.length];
+            for (int i = 0; i < ticks.length; i++) ticks[i] = labels.value(homeAxis.ticksKg[i]);
+            setContentDescription(getContentDescription() + ". Scale from " + ticks[0] + " to " + ticks[ticks.length - 1] + ".");
+        } else {
+            min = Double.POSITIVE_INFINITY;
+            max = Double.NEGATIVE_INFINITY;
+            for (TrendSeries.Sample s : data.samples) include(s.value);
+            for (TrendSeries.Day d : data.days) include(d.trend);
+            if (data.samples.isEmpty()) { min = 0; max = 1; }
+            double margin = Math.max(0.15, (max - min) * 0.16);
+            if (max - min < 1.0) margin = Math.max(margin, (1.0 - (max - min)) / 2);
+            min -= margin;
+            max += margin;
+            ticks = new String[3];
             for (int i = 0; i <= 2; i++) ticks[i] = labels.value(min + (max - min) * i / 2);
             SimpleDateFormat format = new SimpleDateFormat(data.to - data.from >= 365 ? "MMM yy" : "d MMM", Locale.UK);
             format.setTimeZone(TrendSeries.UTC);
             startLabel = format.format(new Date(data.from * TrendSeries.MILLIS_PER_DAY));
             endLabel = format.format(new Date(data.to * TrendSeries.MILLIS_PER_DAY));
         }
+        font = (homeChart ? 12 : 11) * getResources().getDisplayMetrics().scaledDensity;
+        pen.setTextSize(font);
+        float widest = 0;
+        for (String tick : ticks) widest = Math.max(widest, pen.measureText(tick));
+        labelWidth = widest;
     }
 
     private void include(double value) { min = Math.min(min, value); max = Math.max(max, value); }
     private float dp(float value) { return density * value; }
+    int homeEndInset() { return (int)Math.ceil(labelWidth + dp(14)); }
     private float x(double localTime) {
         if (domainStart == domainEnd) return (left + right) / 2;
         return left + (float) ((localTime - domainStart) / (domainEnd - domainStart)) * (right - left);
@@ -112,7 +126,7 @@ final class TrendPlot extends View {
 
     /** A normal visit reveals the trace. A fresh observation gets one halo at its actual coordinates. */
     void playArrival(String entryId) {
-        if (!compact || data.samples.isEmpty()) return;
+        if (!homeChart || data.samples.isEmpty()) return;
         stopAnimation();
         newPoint = findPoint(entryId);
         if (entryId != null && newPoint == null) { invalidate(); return; }
@@ -152,27 +166,25 @@ final class TrendPlot extends View {
 
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        float font = 11 * getResources().getDisplayMetrics().scaledDensity;
-        pen.setTextSize(font);
-        float rail = 0;
-        if (!compact) {
-            for (String label : ticks) rail = Math.max(rail, pen.measureText(label));
+        left = dp(homeChart ? 10 : 4);
+        right = Math.max(left + dp(12), getWidth() - (homeChart ? homeEndInset() : labelWidth + dp(12)));
+        top = homeChart ? Math.max(font, dp(12)) : font;
+        bottom = Math.max(top + dp(8), getHeight() - (homeChart ? top : font + dp(12)));
+        float interval = (bottom - top) / (ticks.length - 1);
+        int labelEvery = homeChart ? Math.max(1,(int)Math.ceil(font * 1.45 / interval)) : 1;
+        for (int i = 0; i < ticks.length; i++) {
+            float tick = bottom - interval * i;
+            stroke(GRID, 1);
+            canvas.drawLine(left, tick, right, tick, pen);
+            // Keep both end labels legible even with large accessibility text.
+            boolean endpoint = i == 0 || i == ticks.length - 1;
+            if (!endpoint && (i % labelEvery != 0 || ticks.length - 1 - i < labelEvery)) continue;
+            pen.setColor(0xFFC1B9CD);
+            pen.setStyle(Paint.Style.FILL);
+            pen.setTextAlign(Paint.Align.LEFT);
+            canvas.drawText(ticks[i], right + dp(8), tick + font * 0.33f, pen);
         }
-        left = dp(compact ? 10 : 4);
-        right = Math.max(left + dp(12), getWidth() - (compact ? dp(10) : rail + dp(12)));
-        top = compact ? dp(10) : font;
-        bottom = Math.max(top + dp(8), getHeight() - (compact ? dp(10) : font + dp(12)));
-        if (!compact) {
-            for (int i = 0; i <= 2; i++) {
-                double value = min + (max - min) * i / 2;
-                float tick = y(value);
-                stroke(GRID, 1);
-                canvas.drawLine(left, tick, right, tick, pen);
-                pen.setColor(0xFFC1B9CD);
-                pen.setStyle(Paint.Style.FILL);
-                pen.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(ticks[i], right + dp(8), tick + font * 0.33f, pen);
-            }
+        if (!homeChart) {
             boolean bothFit = pen.measureText(startLabel) + pen.measureText(endLabel) + dp(8) < right - left;
             if (bothFit || data.from == data.to) canvas.drawText(startLabel, left, getHeight() - dp(2), pen);
             if (data.from != data.to) {
@@ -196,7 +208,7 @@ final class TrendPlot extends View {
             pen.setShader(fill);
             canvas.drawPath(path, pen);
             pen.setShader(null);
-            stroke(LINE, compact ? 1.8f : 2.5f);
+            stroke(LINE, homeChart ? 1.8f : 2.5f);
             TrendSeries.Day previous = first;
             for (int i = 1; i < data.days.size(); i++) {
                 TrendSeries.Day d = data.days.get(i);
@@ -207,9 +219,9 @@ final class TrendPlot extends View {
             pen.setPathEffect(null);
         }
         pen.setStyle(Paint.Style.FILL);
-        pen.setColor(compact ? 0xCCDFD5EB : POINT);
-        if (compact && data.days.size() == 1) pen.setAlpha(Math.round(76 + 128 * reveal));
-        for (TrendSeries.Sample s : data.samples) canvas.drawCircle(x(s.x), y(s.value), dp(compact ? 2.4f : 2.6f), pen);
+        pen.setColor(homeChart ? 0xCCDFD5EB : POINT);
+        if (homeChart && data.days.size() == 1) pen.setAlpha(Math.round(76 + 128 * reveal));
+        for (TrendSeries.Sample s : data.samples) canvas.drawCircle(x(s.x), y(s.value), dp(homeChart ? 2.4f : 2.6f), pen);
         canvas.restore();
         if (newPoint != null) {
             float px = x(newPoint.x), py = y(newPoint.value);
@@ -256,7 +268,7 @@ final class TrendPlot extends View {
     }
 
     @Override public boolean onTouchEvent(MotionEvent event) {
-        if (compact || data.samples.isEmpty()) return false;
+        if (homeChart || data.samples.isEmpty()) return false;
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 downX = event.getX(); downY = event.getY(); scrubbing = false;
@@ -294,7 +306,7 @@ final class TrendPlot extends View {
 
     @Override public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
         super.onInitializeAccessibilityNodeInfo(info);
-        if (compact || data.samples.isEmpty()) return;
+        if (homeChart || data.samples.isEmpty()) return;
         info.setScrollable(true);
         if (selected + 1 < data.samples.size()) info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD);
         if (selected != 0 && data.samples.size() > 1) info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD);

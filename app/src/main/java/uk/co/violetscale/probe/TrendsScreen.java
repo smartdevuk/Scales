@@ -62,12 +62,14 @@ final class TrendsScreen {
                 : " · A second day starts the trend";
         host.ui.gap(panel, 3);
         panel.addView(host.ui.text(detail, 13, MUTED));
-        TrendPlot plot = new TrendPlot(host, w, true, new TrendPlot.Labels() {
+        WeightAxis axis = WeightAxis.forWindow(w, host.store.get("unit","kg"));
+        TrendPlot plot = new TrendPlot(host, w, axis, new TrendPlot.Labels() {
             @Override public String value(double value) { return host.weight(value); }
             @Override public void select(TrendSeries.Sample sample) { }
         });
-        panel.addView(plot, -1, host.ui.dp(54));
+        panel.addView(plot, -1, host.ui.dp(200));
         LinearLayout dates = host.ui.row();
+        dates.setPadding(host.ui.dp(10), 0, plot.homeEndInset(), 0);
         TrendSeries.Sample first = w.samples.get(0), last = w.samples.get(count - 1);
         boolean sameInstant = first.x == last.x;
         String pattern = !sameInstant && !estimated ? "HH:mm" : "d MMM";
@@ -156,7 +158,7 @@ final class TrendsScreen {
         inspector.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
         Button editReading = host.ui.button("Edit selected reading", () -> { });
         editReading.setVisibility(View.GONE);
-        TrendPlot plot = new TrendPlot(host, window, false, new TrendPlot.Labels() {
+        TrendPlot plot = new TrendPlot(host, window, null, new TrendPlot.Labels() {
             @Override public String value(double v) { return TrendsScreen.this.value(v); }
             @Override public void select(TrendSeries.Sample sample) {
                 SimpleDateFormat fmt = new SimpleDateFormat("d MMM yyyy, HH:mm", Locale.UK);

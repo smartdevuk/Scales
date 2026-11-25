@@ -1,13 +1,13 @@
-# Building Scales 1.2
+# Building Scales 1.3
 
-Scales is a native Android app for API 23 and newer. Version 1.2 uses version code 4 and application ID `uk.co.violetscale.probe`. The ID and original signing certificate preserve the Android update path from the diagnostic APK, Violet 1.0 and the earlier Scales 1.2 build.
+Scales is a native Android app for API 23 and newer. Version 1.3 uses version code 5 and application ID `uk.co.violetscale.probe`. The ID and original signing certificate preserve the Android update path from the diagnostic APK, Violet 1.0 and Scales 1.2.
 
 ## Install the published APK
 
-Download `Scales-1.2.apk` to the phone, open it and accept Android’s install or update prompt. For USB installation with Android platform tools, run the following command from the directory containing the APK.
+Download `Scales-1.3.apk` to the phone, open it and accept Android’s install or update prompt. For USB installation with Android platform tools, run the following command from the directory containing the APK.
 
 ```sh
-adb install -r Scales-1.2.apk
+adb install -r Scales-1.3.apk
 ```
 
 If Android reports a conflicting signature, keep the installed app and its history. Export a full backup from **Settings → Import, export and backup**, then obtain an update signed with the certificate that signed the installed version.
@@ -22,7 +22,7 @@ Install JDK 17, Android SDK Platform 34 and Android SDK Build Tools 34.0.0. The 
 .\build.ps1
 ```
 
-The last command compiles Java, links resources, builds DEX, aligns and signs the package, verifies its certificate and checks its manifest. The signed output is `dist/Scales-1.2.apk`. The release manifest has debugging disabled.
+The last command compiles Java, links resources, builds DEX, aligns and signs the package, verifies its certificate and checks its manifest. The signed output is `dist/Scales-1.3.apk`. The release manifest has debugging disabled.
 
 ## Build with Gradle
 
@@ -67,4 +67,4 @@ A build using a different private key has a different Android signing identity. 
 
 ## Verify an APK
 
-Run Android Build Tools’ `apksigner verify --verbose --print-certs Scales-1.2.apk` and compare the signer SHA-256 digest with the expected fingerprint. A file SHA-256 checksum identifies the exact APK bytes and changes when the build changes. A certificate SHA-256 fingerprint identifies the signing certificate across updates. [APK signature verification](https://developer.android.com/tools/apksigner) · [Android app signing](https://developer.android.com/studio/publish/app-signing)
+Run Android Build Tools’ `apksigner verify --verbose --print-certs Scales-1.3.apk` and compare the signer SHA-256 digest with the expected fingerprint. A file SHA-256 checksum identifies the exact APK bytes and changes when the build changes. A certificate SHA-256 fingerprint identifies the signing certificate across updates. [APK signature verification](https://developer.android.com/tools/apksigner) · [Android app signing](https://developer.android.com/studio/publish/app-signing)

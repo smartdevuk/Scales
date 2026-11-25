@@ -64,7 +64,7 @@ final class SettingsScreen {
                 }).show());
         row("Scale diagnostics","Capture and export a Bluetooth session",() -> home.startActivity(new Intent(home,MainActivity.class)));
         ui.gap(home.content,16);
-        TextView privacy=ui.text("Scales 1.2 · Offline, on this phone",13,Ui.MUTED);
+        TextView privacy=ui.text("Scales 1.3 · Offline, on this phone",13,Ui.MUTED);
         home.content.addView(privacy);
     }
 

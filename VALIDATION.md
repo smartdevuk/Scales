@@ -1,4 +1,4 @@
-# Scales 1.2 validation
+# Scales 1.3 validation
 
 ## Reproduce the checks
 
@@ -12,11 +12,11 @@ Use JDK 17 and Android SDK 34. The JVM fixtures exercise the production code for
 
 The standalone build compiles resources and Java sources, generates DEX, aligns the package, signs it and runs Android's signature verifier. The Gradle project provides an additional Android Studio build route.
 
-Android's package tools inspected `Scales-1.2.apk` and reported the label **Scales**, package `uk.co.violetscale.probe`, version name **1.2**, version code **4**, minimum API **23** and target API **34**. The v1, v2 and v3 signatures verified with the retained compatibility certificate. The packaged manifest declares no internet permission. [Signing and updates](BUILDING.md)
+Android's package tools inspected `Scales-1.3.apk` and reported the label **Scales**, package `uk.co.violetscale.probe`, version name **1.3**, version code **5**, minimum API **23** and target API **34**. The v1, v2 and v3 signatures verified with the retained compatibility certificate. The packaged manifest declares no internet permission. [Signing and updates](BUILDING.md)
 
 ## Checked during development
 
-All nine JVM fixture suites passed.
+All ten JVM fixture suites passed.
 
 | Suite | Checks passed |
 | --- | ---: |
@@ -26,11 +26,18 @@ All nine JVM fixture suites passed.
 | Yoda0 weighing sessions | 55 |
 | Diagnostic decoders | 26 |
 | Trend calculations | 59 |
+| Today chart scaling and labels | 204 |
 | CSV handling | 19 |
 | Habit calendar and reminder times | 15 |
 | Weight units and conversions | 20 |
 
 SQLite-backed checks passed for normal operations, a process restart and both historical schema migration paths. A separate simulated Android GATT transport exercise passed 31 assertions covering legacy and modern subscriptions, callback ordering, timeouts, failures and cleanup.
+
+The v1.2 to v1.3 storage test seeded a database through the published v1.2 storage code and reopened it through v1.3. Four synthetic measurements retained all 80 checked field values and ten saved settings. A duplicate Bluetooth session was recognised, a fifth measurement was saved and a fresh process read it back. Both APKs have the same package ID and verified signing certificate.
+
+On an Android 14 emulator, the published v1.2 APK saved two manual entries with notes, a height and a pounds display preference through the app. Android installed the signed v1.3 APK over it with `adb install -r`. Both entries appeared in History, and every original database field and setting matched after two cold starts. [Android upgrade test](https://github.com/smartdevuk/Scales/actions/runs/45651481260)
+
+Native previews of the 200 dp Today chart covered empty, single-day, flat and multi-day histories in kilograms, pounds and stones. The label and grid checks included a 320 dp screen and enlarged text. The animation preview uses the native chart with its 570 ms trace reveal and 720 ms pulse on a new reading.
 
 Native Android layout previews covered empty history, one reading, several same-day readings and a multi-day chart, with animations enabled and disabled. The public screen previews use synthetic measurements. The public examples omit private weigh-ins, capture files and machine paths. Source references and relative documentation links were checked. [Screen previews](docs/screenshots/README.md)
 
