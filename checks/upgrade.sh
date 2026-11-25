@@ -35,11 +35,14 @@ aapt=${available[-1]}
 signer="$(dirname "$aapt")/apksigner"
 [[ -x "$signer" ]] || die 'apksigner is missing from build-tools.'
 cert() {
-    "$signer" verify --print-certs "$1" | awk '/^Signer #1 certificate SHA-256 digest:/ { print $NF }'
+    "$signer" verify "$1" >/dev/null || return 1
+    # Both releases carry a v1 RSA signature in addition to v2/v3. Hash the DER
+    # certificate directly to avoid parsing version-specific apksigner labels.
+    unzip -p "$1" 'META-INF/*.RSA' | openssl pkcs7 -inform DER -print_certs | openssl x509 -outform DER | sha256sum | cut -d ' ' -f 1
 }
 base_cert="$(cert Scales-1.2.apk)"
 target_cert="$(cert Scales-1.3.apk)"
-[[ "$base_cert" =~ ^[A-Fa-f0-9]{64}$ && "$base_cert" == "$target_cert" ]] || die 'The APK signing identities differ.'
+[[ "$base_cert" == 0383b4120a42f88f2a5bcd9cfc110d37d50e4aa70862f09c3906ab1650e27adb && "$base_cert" == "$target_cert" ]] || die 'Failed to verify the expected signing identity for both APKs.'
 for version in 1.2 1.3; do
     badging="$("$aapt" dump badging "Scales-$version.apk")"
     line="${badging%%$'\n'*}"
