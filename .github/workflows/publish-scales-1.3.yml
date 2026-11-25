@@ -47,8 +47,30 @@ jobs:
 
           [Validation results](https://github.com/smartdevuk/Scales/blob/v1.3/VALIDATION.md) · [Upgrade test run](https://github.com/smartdevuk/Scales/actions/runs/45651481260)
           NOTES
-          gh release create v1.3 Scales-1.3.apk Scales-1.3.apk.sha256 Scales-weight-graph-demo.gif \
-            --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title 'Scales 1.3' --latest --notes-file notes.md
+          endpoint="repos/$GITHUB_REPOSITORY/releases"
+          release_id=$(gh api "$endpoint?per_page=100" --jq '.[] | select(.tag_name == "v1.3") | .id')
+          if [[ -z "$release_id" ]]; then
+            gh release create v1.3 --draft --repo "$GITHUB_REPOSITORY" --target "$SOURCE_COMMIT" --title 'Scales 1.3' --notes-file notes.md
+            release_id=$(gh api "$endpoint?per_page=100" --jq '.[] | select(.tag_name == "v1.3") | .id')
+          fi
+          [[ "$release_id" =~ ^[0-9]+$ ]]
+          test "$(gh api "$endpoint/$release_id" --jq .target_commitish)" = "$SOURCE_COMMIT"
+          for file in Scales-1.3.apk Scales-1.3.apk.sha256 Scales-weight-graph-demo.gif; do
+            wanted="sha256:$(sha256sum "$file" | cut -d ' ' -f 1)"
+            for attempt in 1 2 3; do
+              existing=$(gh api "$endpoint/$release_id/assets" | jq -r --arg f "$file" '.[] | select(.name == $f) | [.state, .digest] | join(" ")')
+              [[ "$existing" != "uploaded $wanted" ]] || break
+              if [[ -n "$existing" ]]; then
+                echo "Unexpected asset state or digest for $file" >&2
+                exit 1
+              fi
+              gh release upload v1.3 "$file" --repo "$GITHUB_REPOSITORY" || true
+              sleep 2
+            done
+            digest=$(gh api "$endpoint/$release_id/assets" | jq -r --arg f "$file" '.[] | select(.name == $f and .state == "uploaded") | .digest')
+            test "$digest" = "$wanted"
+          done
+          gh api --method PATCH "$endpoint/$release_id" -F draft=false -F prerelease=false -f make_latest=true --jq .html_url
           for attempt in 1 2 3 4 5; do
             if curl --fail --location --silent --show-error \
               "https://github.com/$GITHUB_REPOSITORY/releases/download/v1.3/Scales-1.3.apk" -o public.apk && cmp Scales-1.3.apk public.apk; then
